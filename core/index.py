@@ -59,4 +59,35 @@ class Index:
         
         return False
     
+    def _is_git_file(self, path):
+        """Check if a file is in the .simplegit directory"""
+        return path.startswith(".simplegit")
+    
+    def _add_file(self, path):
+        """Add a single file to the index"""
+        full_path = os.path.join(self.repo.repo_path, path)
+        
+        try:
+            # Read file content
+            with open(full_path, "rb") as f:
+                content = f.read()
+            
+            # Hash and store the content
+            blob = Blob(self.repo)
+            sha1 = blob.create(content)
+            
+            # Add to index
+            self.entries[path] = {
+                "sha1": sha1,
+                "mode": "100644",  # Regular file
+                "size": len(content),
+                "mtime": os.path.getmtime(full_path)
+            }
+            
+            print(f"Added {path} to index")
+            return True
+        except Exception as e:
+            print(f"Error adding {path}: {e}")
+            return False
+    
     
