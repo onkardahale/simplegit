@@ -126,3 +126,60 @@ class Tree(GitObject):
             i = null_pos + 21
         
         return entries
+
+
+class Commit(GitObject):
+    """Represents a commit in Git"""
+    
+    def create(self, tree_sha1, message, parent=None):
+        """Create a commit object"""
+
+        # Set author/committer info
+        ### PLACEHOLDERS
+        author = "SimpleGit User <user@example.com>"  # Should come from config
+        timezone = "-0500"  # Should be determined from system
+        ####
+
+        timestamp = int(time.time())
+       
+        # Build commit content
+        commit_content = f"tree {tree_sha1}\n"
+        if parent:
+            commit_content += f"parent {parent}\n"
+        
+        commit_content += f"author {author} {timestamp} {timezone}\n"
+        commit_content += f"committer {author} {timestamp} {timezone}\n"
+        commit_content += f"\n{message}\n"
+        
+        return self.hash_object(commit_content, "commit")
+    
+    def read(self, sha1):
+        """
+        Read a commit object
+        Returns a dict with commit information
+        """
+        obj_type, content = self.read_object(sha1)
+        if obj_type != "commit":
+            raise ValueError(f"Expected commit, got {obj_type}")
+        
+        lines = content.decode().split("\n")
+        message_idx = lines.index("")
+        
+        # Parse header
+        commit_info = {}
+        for line in lines[:message_idx]:
+            key, value = line.split(" ", 1)
+            commit_info[key] = value
+        
+        # Parse message
+        commit_info["message"] = "\n".join(lines[message_idx + 1:]).strip()
+        
+        # Parse author
+        author_line = commit_info.get("author", "")
+        author_parts = author_line.rsplit(" ", 2)
+        if len(author_parts) >= 3:
+            commit_info["author_name"] = author_parts[0]
+            commit_info["timestamp"] = int(author_parts[1])
+            commit_info["timezone"] = author_parts[2]
+        
+        return commit_info
