@@ -163,5 +163,8 @@ class Index:
             subdir_sha1 = self._write_tree_recursive(subdir, dirs, tree)
             entries.append(("040000", rel_path, subdir_sha1))
         
+        # Sort entries by name for deterministic tree hashing
+        entries.sort(key=lambda x: x[1])  # Sort by filename (index 1)
+        
         # Create tree object
         return tree.create(entries)
