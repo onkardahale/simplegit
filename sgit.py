@@ -53,6 +53,19 @@ def cmd_status(args):
     
     return 0
 
+def cmd_add(args):
+    """Add file contents to the index"""
+    repo = Repository.find_repository()
+    if not repo:
+        print("Not a SimpleGit repository")
+        return 1
+    
+    for path in args.paths:
+        repo.index.add(path)
+    
+    repo.index.save()
+    return 0
+
 def main():
     parser = argparse.ArgumentParser(description="SimpleGit: A minimal Git implementation for testing")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -63,6 +76,10 @@ def main():
     
     # status command
     parser_status = subparsers.add_parser("status", help="Show the working tree status")
+
+    # add command
+    parser_add = subparsers.add_parser("add", help="Add file contents to the index")
+    parser_add.add_argument("paths", nargs="+", help="Files to add")
     
     args = parser.parse_args()
     
