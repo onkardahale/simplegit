@@ -87,6 +87,8 @@ def main():
         return cmd_init(args)
     elif args.command == "status":
         return cmd_status(args)
+    elif args.command == "add":
+        return cmd_add(args)
     else:
         parser.print_help()
         return 1
