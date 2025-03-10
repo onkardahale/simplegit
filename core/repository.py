@@ -127,3 +127,53 @@ class Repository:
             print(f"Created commit {commit_sha1[:7]} (HEAD -> {target})")
         
         return commit_sha1
+    
+    def log(self, max_count=None):
+        """
+        Show commit logs
+        
+        Args:
+            max_count: Maximum number of commits to show (None for all)
+            
+        Returns:
+            List of commit objects
+        """
+        from core.object import Commit
+        from core.ref import Reference
+        
+        # Get current HEAD
+        refs = Reference(self)
+        current_sha1 = refs.resolve_HEAD()
+        
+        if not current_sha1:
+            print("No commits yet")
+            return []
+        
+        # Get branch name for display
+        is_detached, head_target = refs.get_HEAD()
+        branch_display = f"(HEAD{' detached' if is_detached else ' -> ' + head_target})"
+        
+        # Walk the commit history
+        commit = Commit(self)
+        commits = []
+        count = 0
+        
+        current = current_sha1
+        while current and (max_count is None or count < max_count):
+            try:
+                commit_data = commit.read(current)
+                
+                # Add branch info for the first commit
+                if count == 0:
+                    commit_data["branch_display"] = branch_display
+                
+                commits.append(commit_data)
+                count += 1
+                
+                # Move to parent
+                current = commit_data.get("parent")
+            except Exception as e:
+                print(f"Error reading commit {current}: {e}")
+                break
+        
+        return commits
