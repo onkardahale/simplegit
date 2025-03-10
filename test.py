@@ -444,6 +444,138 @@ class TestTree:
         assert read_subtree[0][1] == "subfile1.txt"
         assert read_subtree[0][2] == file1_sha
 
+# Test Commit class
+class TestCommit:
+    @pytest.fixture
+    def repo(self):
+        """Create a real repository object with temporary paths"""
+        temp_dir = tempfile.mkdtemp()
+        repo_path = os.path.join(temp_dir, "test_repo")
+        os.makedirs(repo_path)
+        
+        # Create a real repository instance
+        repo = Repository(repo_path)
+        repo.init()
+        
+        yield repo
+        
+        # Clean up after tests
+        shutil.rmtree(temp_dir)
+    
+    def test_create_commit(self, repo):
+        """Test creating a commit object"""
+        from core.object import Commit, Tree, Blob
+        
+        # First create some test files
+        blob = Blob(repo)
+        file1_sha = blob.create("File 1 content")
+        file2_sha = blob.create("File 2 content")
+        
+        # Create a tree containing these files
+        tree = Tree(repo)
+        tree_entries = [
+            ("100644", "file1.txt", file1_sha),
+            ("100644", "file2.txt", file2_sha)
+        ]
+        tree_sha = tree.create(tree_entries)
+        
+        # Create a commit
+        commit = Commit(repo)
+        message = "Initial commit"
+        commit_sha = commit.create(tree_sha, message)
+        
+        # Verify commit exists
+        object_path = os.path.join(repo.objects_dir, commit_sha[:2], commit_sha[2:])
+        assert os.path.exists(object_path)
+        
+        # Read back the commit
+        commit_data = commit.read(commit_sha)
+        assert commit_data["tree"] == tree_sha
+        assert commit_data["message"] == message
+        
+        # Verify the commit is of correct type
+        git_obj = GitObject(repo)
+        obj_type, _ = git_obj.read_object(commit_sha)
+        assert obj_type == "commit"
+    
+    def test_commit_with_parent(self, repo):
+        """Test creating a commit with a parent"""
+        from core.object import Commit, Tree, Blob
+        
+        # Create first commit
+        blob = Blob(repo)
+        file_sha = blob.create("File content")
+        
+        tree = Tree(repo)
+        tree_entries = [("100644", "file.txt", file_sha)]
+        tree_sha = tree.create(tree_entries)
+        
+        commit = Commit(repo)
+        first_message = "First commit"
+        first_commit_sha = commit.create(tree_sha, first_message)
+        
+        # Create second commit with first as parent
+        file2_sha = blob.create("File 2 content")
+        tree_entries2 = [
+            ("100644", "file.txt", file_sha),
+            ("100644", "file2.txt", file2_sha)
+        ]
+        tree_sha2 = tree.create(tree_entries2)
+        
+        second_message = "Second commit"
+        second_commit_sha = commit.create(tree_sha2, second_message, parent=first_commit_sha)
+        
+        # Read second commit and verify parent
+        commit_data = commit.read(second_commit_sha)
+        assert commit_data["tree"] == tree_sha2
+        assert commit_data["message"] == second_message
+        assert commit_data["parent"] == first_commit_sha
+    
+    def test_read_commit(self, repo):
+        """Test reading a commit's details"""
+        from core.object import Commit, Tree, Blob
+        
+        # Setup a commit to read
+        blob = Blob(repo)
+        file_sha = blob.create("File content")
+        
+        tree = Tree(repo)
+        tree_sha = tree.create([("100644", "file.txt", file_sha)])
+        
+        commit = Commit(repo)
+        message = "Test commit message\nWith multiple lines\n\nAnd paragraphs"
+        author = "Test User <test@example.com>"
+        commit_sha = commit.create(tree_sha, message, author=author)
+        
+        # Read commit data
+        commit_data = commit.read(commit_sha)
+        
+        # Verify fields
+        assert commit_data["tree"] == tree_sha
+        assert commit_data["message"] == message
+        assert commit_data["author_name"] == author
+        assert "author_timestamp" in commit_data
+        assert "author_date" in commit_data
+    
+    def test_get_commit_message(self, repo):
+        """Test getting just the commit message"""
+        from core.object import Commit, Tree, Blob
+        
+        # Setup a commit
+        blob = Blob(repo)
+        file_sha = blob.create("Content")
+        
+        tree = Tree(repo)
+        tree_sha = tree.create([("100644", "file.txt", file_sha)])
+        
+        commit = Commit(repo)
+        message = "Test commit message"
+        commit_sha = commit.create(tree_sha, message)
+        
+        # Get just the message
+        retrieved_message = commit.get_commit_message(commit_sha)
+        assert retrieved_message == message
+
 # Test utility functions
 class TestUtilities:
     def test_compression(self):
