@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+
+# Exit on any error
+set -e
+
+echo "Running tests before commit..."
+python3 -m pytest test.py -v
+
+# If tests pass, allow the commit to proceed
+echo "All tests passed! Proceeding with commit."
