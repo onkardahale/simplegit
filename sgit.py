@@ -66,6 +66,31 @@ def cmd_add(args):
     repo.index.save()
     return 0
 
+def cmd_log(args):
+    """Show commit logs"""
+    repo = Repository.find_repository()
+    if not repo:
+        print("Not a SimpleGit repository")
+        return 1
+    
+    commits = repo.log(args.max_count)
+    
+    for commit in commits:
+        sha1 = commit.get("parent", "")  # This is actually the current commit's SHA-1
+        date = commit.get("author_date", "Unknown date")
+        author = commit.get("author_name", "Unknown author")
+        message = commit.get("message", "")
+        branch_display = commit.get("branch_display", "")
+        
+        print(f"commit {sha1} {branch_display}")
+        print(f"Author: {author}")
+        print(f"Date:   {date}")
+        print()
+        print(f"    {message}")
+        print()
+    
+    return 0
+
 def main():
     parser = argparse.ArgumentParser(description="SimpleGit: A minimal Git implementation for testing")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -80,6 +105,10 @@ def main():
     # add command
     parser_add = subparsers.add_parser("add", help="Add file contents to the index")
     parser_add.add_argument("paths", nargs="+", help="Files to add")
+
+    # log command
+    parser_log = subparsers.add_parser("log", help="Show commit logs")
+    parser_log.add_argument("-n", "--max-count", type=int, help="Limit number of commits")
     
     args = parser.parse_args()
     
@@ -89,6 +118,8 @@ def main():
         return cmd_status(args)
     elif args.command == "add":
         return cmd_add(args)
+    elif args.command == "log":
+        return cmd_log(args)
     else:
         parser.print_help()
         return 1
