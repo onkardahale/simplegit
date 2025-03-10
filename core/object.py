@@ -131,15 +131,30 @@ class Tree(GitObject):
 class Commit(GitObject):
     """Represents a commit in Git"""
     
-    def create(self, tree_sha1, message, parent=None):
-        """Create a commit object"""
-
-        # Set author/committer info
-        ### PLACEHOLDERS
-        author = "SimpleGit User <user@example.com>"  # Should come from config
+    def create(self, tree_sha1, message, parent=None, author=None, committer=None):
+        """
+        Create a commit object
+        
+        Args:
+            tree_sha1: SHA-1 of the tree
+            message: Commit message
+            parent: SHA-1 of parent commit (optional)
+            author: Author string "Name <email>" (optional)
+            committer: Committer string "Name <email>" (optional)
+            
+        Returns:
+            SHA-1 of the new commit
+        """
+        # Set default author/committer info if not provided
+        if not author:
+            author = "SimpleGit User <user@example.com>"  # Should come from config
+        if not committer:
+            committer = author
+            
+        # Get timezone
         timezone = "-0500"  # Should be determined from system
-        ####
-
+        
+        # Get current timestamp
         timestamp = int(time.time())
        
         # Build commit content
@@ -148,7 +163,7 @@ class Commit(GitObject):
             commit_content += f"parent {parent}\n"
         
         commit_content += f"author {author} {timestamp} {timezone}\n"
-        commit_content += f"committer {author} {timestamp} {timezone}\n"
+        commit_content += f"committer {committer} {timestamp} {timezone}\n"
         commit_content += f"\n{message}\n"
         
         return self.hash_object(commit_content, "commit")
@@ -169,17 +184,45 @@ class Commit(GitObject):
         commit_info = {}
         for line in lines[:message_idx]:
             key, value = line.split(" ", 1)
-            commit_info[key] = value
+            
+            # Handle multiple parents
+            if key == "parent" and "parents" in commit_info:
+                commit_info["parents"].append(value)
+            elif key == "parent":
+                commit_info["parents"] = [value]
+                commit_info["parent"] = value  # For backwards compatibility
+            else:
+                commit_info[key] = value
         
         # Parse message
         commit_info["message"] = "\n".join(lines[message_idx + 1:]).strip()
         
-        # Parse author
-        author_line = commit_info.get("author", "")
-        author_parts = author_line.rsplit(" ", 2)
-        if len(author_parts) >= 3:
-            commit_info["author_name"] = author_parts[0]
-            commit_info["timestamp"] = int(author_parts[1])
-            commit_info["timezone"] = author_parts[2]
+        # Parse author and committer
+        for role in ["author", "committer"]:
+            role_line = commit_info.get(role, "")
+            role_parts = role_line.rsplit(" ", 2)
+            if len(role_parts) >= 3:
+                commit_info[f"{role}_name"] = role_parts[0]
+                commit_info[f"{role}_timestamp"] = int(role_parts[1])
+                commit_info[f"{role}_timezone"] = role_parts[2]
+                # Format timestamp as readable date
+                timestamp = commit_info[f"{role}_timestamp"]
+                date_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                commit_info[f"{role}_date"] = date_str
         
         return commit_info
+        
+    def get_commit_message(self, sha1):
+        """Get just the commit message"""
+        commit_info = self.read(sha1)
+        return commit_info.get("message", "")
+    
+    def get_parent(self, sha1):
+        """Get the parent commit SHA-1"""
+        commit_info = self.read(sha1)
+        return commit_info.get("parent")
+    
+    def get_tree(self, sha1):
+        """Get the tree SHA-1 for this commit"""
+        commit_info = self.read(sha1)
+        return commit_info.get("tree")
