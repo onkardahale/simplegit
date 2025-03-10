@@ -1,2 +1,1 @@
-pytest==7.4.0
-zlib==1.2.13
+pytest
