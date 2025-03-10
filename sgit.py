@@ -91,6 +91,23 @@ def cmd_log(args):
     
     return 0
 
+def cmd_commit(args):
+    """Record changes to the repository"""
+    repo = Repository.find_repository()
+    if not repo:
+        print("Not a SimpleGit repository")
+        return 1
+    
+    if not args.message:
+        print("Aborting commit due to empty commit message")
+        return 1
+    
+    commit_sha = repo.commit(args.message)
+    if commit_sha:
+        return 0
+    return 1
+
+
 def main():
     parser = argparse.ArgumentParser(description="SimpleGit: A minimal Git implementation for testing")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -109,6 +126,10 @@ def main():
     # log command
     parser_log = subparsers.add_parser("log", help="Show commit logs")
     parser_log.add_argument("-n", "--max-count", type=int, help="Limit number of commits")
+
+    # commit command
+    parser_commit = subparsers.add_parser("commit", help="Record changes to the repository")
+    parser_commit.add_argument("-m", "--message", required=True, help="Commit message")
     
     args = parser.parse_args()
     
@@ -120,6 +141,8 @@ def main():
         return cmd_add(args)
     elif args.command == "log":
         return cmd_log(args)
+    elif args.command == "commit":
+        return cmd_commit(args)
     else:
         parser.print_help()
         return 1
