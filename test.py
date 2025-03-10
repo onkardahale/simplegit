@@ -1,4 +1,5 @@
 import os
+import tempfile
 import shutil
 import pytest
 from unittest.mock import MagicMock, patch
@@ -7,20 +8,192 @@ import zlib
 
 # Import the modules to test
 from core.object import GitObject, Blob, Tree
+from core.ref import Reference
+from core.repository import Repository
 from utils.compression import compress, decompress
 from utils.file_operations import ensure_dir, safe_write, list_files
+
+class TestReferenceManagement:
+    
+    @pytest.fixture
+    def repo_setup(self):
+        """Set up a temporary repository for testing"""
+        temp_dir = tempfile.mkdtemp()
+        repo_path = os.path.join(temp_dir, "test_repo")
+        os.makedirs(repo_path)
+        
+        # Initialize repo with necessary directories
+        repo = Repository(repo_path)
+        repo.init()
+        
+        # Create a reference manager
+        refs = Reference(repo)
+        
+        # Return all necessary objects
+        yield repo, refs
+        
+        # Clean up after tests
+        shutil.rmtree(temp_dir)
+    
+    def test_update_ref(self, repo_setup):
+        """Test that updating a reference works"""
+        repo, refs = repo_setup
+        test_sha = "1234567890abcdef1234567890abcdef12345678"
+        refs.update_ref("refs/heads/test-branch", test_sha)
+        
+        # Check that the file was created with the correct content
+        ref_path = os.path.join(repo.git_dir, "refs/heads/test-branch")
+        assert os.path.exists(ref_path)
+        
+        with open(ref_path, "r") as f:
+            content = f.read().strip()
+            assert content == test_sha
+    
+    def test_get_ref(self, repo_setup):
+        """Test retrieving a reference"""
+        repo, refs = repo_setup
+        
+        # Create a reference
+        test_sha = "1234567890abcdef1234567890abcdef12345678"
+        ref_path = "refs/heads/master"
+        refs.update_ref(ref_path, test_sha)
+        
+        # Retrieve the reference
+        result = refs.get_ref(ref_path)
+        assert result == test_sha
+        
+        # Test retrieving a non-existent reference
+        result = refs.get_ref("refs/heads/nonexistent")
+        assert result is None
+    
+    def test_delete_ref(self, repo_setup):
+        """Test deleting a reference"""
+        repo, refs = repo_setup
+        
+        # Create a reference
+        test_sha = "1234567890abcdef1234567890abcdef12345678"
+        ref_path = "refs/heads/to-delete"
+        refs.update_ref(ref_path, test_sha)
+        
+        # Verify it exists
+        assert os.path.exists(os.path.join(repo.git_dir, ref_path))
+        
+        # Delete it
+        result = refs.delete_ref(ref_path)
+        assert result is True
+        
+        # Verify it's gone
+        assert not os.path.exists(os.path.join(repo.git_dir, ref_path))
+        
+        # Try to delete a non-existent reference
+        result = refs.delete_ref("refs/heads/nonexistent")
+        assert result is False
+    
+    def test_list_refs(self, repo_setup):
+        """Test listing references"""
+        repo, refs = repo_setup
+        
+        # Create several references
+        refs_data = {
+            "refs/heads/master": "1111111111111111111111111111111111111111",
+            "refs/heads/feature1": "2222222222222222222222222222222222222222",
+            "refs/heads/feature2": "3333333333333333333333333333333333333333",
+            "refs/tags/v1.0": "4444444444444444444444444444444444444444"
+        }
+        
+        for ref_path, sha in refs_data.items():
+            refs.update_ref(ref_path, sha)
+        
+        # List all references
+        all_refs = refs.list_refs()
+        assert len(all_refs) == 4
+        for ref_path, sha in refs_data.items():
+            assert all_refs[ref_path] == sha
+        
+        # List only branches (heads)
+        branch_refs = refs.list_refs("refs/heads/")
+        assert len(branch_refs) == 3
+        assert "refs/heads/master" in branch_refs
+        assert "refs/heads/feature1" in branch_refs
+        assert "refs/heads/feature2" in branch_refs
+        
+        # List only tags
+        tag_refs = refs.list_refs("refs/tags/")
+        assert len(tag_refs) == 1
+        assert "refs/tags/v1.0" in tag_refs
+    
+    def test_branch_management(self, repo_setup):
+        """Test branch creation, retrieval, and deletion"""
+        repo, refs = repo_setup
+        test_sha = "1234567890abcdef1234567890abcdef12345678"
+        
+        # Create a branch
+        refs.create_branch("test-branch", test_sha)
+        
+        # Get the branch
+        branch_sha = refs.get_branch("test-branch")
+        assert branch_sha == test_sha
+        
+        # List branches
+        branches = refs.list_branches()
+        assert "test-branch" in branches
+        assert branches["test-branch"] == test_sha
+        
+        # Delete the branch
+        refs.delete_branch("test-branch")
+        assert refs.get_branch("test-branch") is None
+    
+    def test_head_management(self, repo_setup):
+        """Test HEAD reference management"""
+        repo, refs = repo_setup
+        
+        # Set up some branches
+        master_sha = "1111111111111111111111111111111111111111"
+        feature_sha = "2222222222222222222222222222222222222222"
+        
+        refs.create_branch("master", master_sha)
+        refs.create_branch("feature", feature_sha)
+        
+        # Update HEAD to point to a branch
+        refs.update_HEAD("master")
+        is_detached, target = refs.get_HEAD()
+        assert is_detached is False
+        assert target == "master"
+        
+        # Resolve HEAD to a commit SHA
+        resolved_sha = refs.resolve_HEAD()
+        assert resolved_sha == master_sha
+        
+        # Switch to another branch
+        refs.update_HEAD("feature")
+        is_detached, target = refs.get_HEAD()
+        assert is_detached is False
+        assert target == "feature"
+        
+        # Detach HEAD (point directly to a commit)
+        detached_sha = "3333333333333333333333333333333333333333"
+        refs.update_HEAD(detached_sha)
+        is_detached, target = refs.get_HEAD()
+        assert is_detached is True
+        assert target == detached_sha
+
 
 class TestGitObject:
     @pytest.fixture
     def repo(self):
-        """Create a mock repository object with temporary paths"""
-        repo = MagicMock()
-        # Create a temporary directory for objects
-        repo.objects_dir = os.path.join(os.getcwd(), "test_objects")
-        ensure_dir(repo.objects_dir)
+        """Create a real repository object with temporary paths"""
+        temp_dir = tempfile.mkdtemp()
+        repo_path = os.path.join(temp_dir, "test_repo")
+        os.makedirs(repo_path)
+        
+        # Create a real repository instance
+        repo = Repository(repo_path)
+        repo.init()
+        
         yield repo
+        
         # Clean up after tests
-        shutil.rmtree(repo.objects_dir)
+        shutil.rmtree(temp_dir)
     
     def test_hash_object(self, repo):
         """Test that hashing an object works correctly"""
@@ -80,13 +253,20 @@ class TestGitObject:
 class TestBlob:
     @pytest.fixture
     def repo(self):
-        """Create a mock repository object with temporary paths"""
-        repo = MagicMock()
-        repo.objects_dir = os.path.join(os.getcwd(), "test_objects")
-        ensure_dir(repo.objects_dir)
+        """Create a real repository object with temporary paths"""
+        temp_dir = tempfile.mkdtemp()
+        repo_path = os.path.join(temp_dir, "test_repo")
+        os.makedirs(repo_path)
+        
+        # Create a real repository instance
+        repo = Repository(repo_path)
+        repo.init()
+        
         yield repo
-        shutil.rmtree(repo.objects_dir)
-    
+        
+        # Clean up after tests
+        shutil.rmtree(temp_dir)
+
     def test_create_blob(self, repo):
         """Test creating a blob from content"""
         blob = Blob(repo)
@@ -148,12 +328,19 @@ class TestBlob:
 class TestTree:
     @pytest.fixture
     def repo(self):
-        """Create a mock repository object with temporary paths"""
-        repo = MagicMock()
-        repo.objects_dir = os.path.join(os.getcwd(), "test_objects")
-        ensure_dir(repo.objects_dir)
+        """Create a real repository object with temporary paths"""
+        temp_dir = tempfile.mkdtemp()
+        repo_path = os.path.join(temp_dir, "test_repo")
+        os.makedirs(repo_path)
+        
+        # Create a real repository instance
+        repo = Repository(repo_path)
+        repo.init()
+        
         yield repo
-        shutil.rmtree(repo.objects_dir)
+        
+        # Clean up after tests
+        shutil.rmtree(temp_dir)
     
     def test_create_tree(self, repo):
         """Test creating a tree from entries"""
