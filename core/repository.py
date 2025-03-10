@@ -83,3 +83,47 @@ class Repository:
                 return repo
             path = os.path.dirname(path)
         return None
+    
+    def commit(self, message):
+        """
+        Create a new commit from the current index state
+        
+        Args:
+            message: The commit message
+            
+        Returns:
+            SHA-1 of the new commit or None if there's an error
+        """
+        from core.object import Commit
+        from core.ref import Reference
+        
+        if not message:
+            print("Aborting commit due to empty commit message")
+            return None
+        
+        # Create a tree from the index
+        tree_sha1 = self.index.write_tree()
+        if not tree_sha1:
+            print("Nothing to commit (empty index)")
+            return None
+        
+        # Get current HEAD as parent
+        refs = Reference(self)
+        head_sha1 = refs.resolve_HEAD()
+        
+        # Create the commit object
+        commit = Commit(self)
+        commit_sha1 = commit.create(tree_sha1, message, parent=head_sha1)
+        
+        # Update the current branch to point to the new commit
+        is_detached, target = refs.get_HEAD()
+        if is_detached:
+            # In detached HEAD state, update HEAD directly
+            refs.update_HEAD(commit_sha1)
+            print(f"Created commit {commit_sha1[:7]} (HEAD detached)")
+        else:
+            # Update the current branch
+            refs.create_branch(target, commit_sha1)
+            print(f"Created commit {commit_sha1[:7]} (HEAD -> {target})")
+        
+        return commit_sha1
