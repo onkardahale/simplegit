@@ -199,7 +199,35 @@ def cmd_branch(args):
     
     return 0
 
-## def cmd_checkout 
+def cmd_checkout(args):
+    """Switch branches or restore working tree files"""
+    repo = Repository.find_repository()
+    if not repo:
+        print("Not a SimpleGit repository")
+        return 1
+    
+    refs = Reference(repo)
+    target = args.branch
+    
+    # Check if target is a branch
+    if refs.get_branch(target):
+        refs.update_HEAD(target)
+        print(f"Switched to branch '{target}'")
+        return 0
+    
+    # Check if target is a commit
+    try:
+        from core.object import Commit
+        commit = Commit(repo)
+        commit.read(target)  # Will raise ValueError if not a commit
+        
+        refs.update_HEAD(target)
+        print(f"HEAD is now at {target[:7]}")
+        return 0
+    except Exception as e:
+        print(f"Error: {e}")
+        print(f"'{target}' is not a valid branch name or commit hash")
+        return 1
 
 def main():
     parser = argparse.ArgumentParser(description="SimpleGit: A minimal Git implementation for testing")
