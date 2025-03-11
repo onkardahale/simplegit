@@ -153,7 +153,52 @@ def cmd_config(args):
     print("   or: simplegit config <section> <key> <value>")
     return 1
 
-## def cmd_branch
+def cmd_branch(args):
+    """List, create, or delete branches"""
+    repo = Repository.find_repository()
+    if not repo:
+        print("Not a SimpleGit repository")
+        return 1
+    
+    refs = Reference(repo)
+    
+    if args.delete:
+        # Delete branch
+        if refs.delete_branch(args.delete):
+            print(f"Deleted branch {args.delete}")
+            return 0
+        else:
+            print(f"Branch {args.delete} not found")
+            return 1
+    
+    if args.name:
+        # Create branch
+        head_sha1 = refs.resolve_HEAD()
+        if not head_sha1:
+            print("Cannot create branch: no commits yet")
+            return 1
+        
+        if refs.get_branch(args.name):
+            print(f"Branch {args.name} already exists")
+            return 1
+        
+        refs.create_branch(args.name, head_sha1)
+        print(f"Created branch {args.name}")
+        return 0
+    
+    # List branches
+    branches = refs.list_branches()
+    is_detached, current = refs.get_HEAD()
+    
+    if not branches:
+        print("No branches yet")
+    else:
+        for name, sha1 in branches.items():
+            prefix = "* " if name == current and not is_detached else "  "
+            print(f"{prefix}{name}")
+    
+    return 0
+
 ## def cmd_checkout 
 
 def main():
