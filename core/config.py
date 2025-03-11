@@ -53,3 +53,11 @@ class Config:
         name = self.get_user_name()
         email = self.get_user_email()
         return f"{name} <{email}>"
+    
+    def set(self, section, key, value):
+        """Set a config value"""
+        if section not in self.config:
+            self.config[section] = {}
+        self.config[section][key] = value
+        
+        ## must save config
