@@ -39,3 +39,17 @@ class Config:
     def get(self, section, key, default=None):
         """Get a config value"""
         return self.config.get(section, {}).get(key, default)
+    
+    def get_user_name(self):
+        """Get the user's name"""
+        return self.get("user", "name", "SimpleGit User")
+    
+    def get_user_email(self):
+        """Get the user's email"""
+        return self.get("user", "email", "user@example.com")
+    
+    def get_user_info(self):
+        """Get formatted user info (for commit author/committer)"""
+        name = self.get_user_name()
+        email = self.get_user_email()
+        return f"{name} <{email}>"
