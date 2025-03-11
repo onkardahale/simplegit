@@ -12,7 +12,7 @@ class Config:
         self.config_file = os.path.join(repo.git_dir, "config")
         self.config = {}
         self.load()
-        
+
     def load(self):
         """Load config from file"""
         if not os.path.exists(self.config_file):
@@ -35,4 +35,7 @@ class Config:
                     key = key.strip()
                     value = value.strip()
                     self.config[section][key] = value
-    
+                    
+    def get(self, section, key, default=None):
+        """Get a config value"""
+        return self.config.get(section, {}).get(key, default)
