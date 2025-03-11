@@ -69,4 +69,4 @@ class Config:
             self.config[section] = {}
         self.config[section][key] = value
         
-        ## must save config
+        self.save()
