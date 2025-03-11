@@ -54,6 +54,15 @@ class Config:
         email = self.get_user_email()
         return f"{name} <{email}>"
     
+    def save(self):
+        """Save config to file"""
+        with open(self.config_file, "w") as f:
+            for section, kvs in self.config.items():
+                f.write(f"[{section}]\n")
+                for key, value in kvs.items():
+                    f.write(f"\t{key} = {value}\n")
+                f.write("\n")
+    
     def set(self, section, key, value):
         """Set a config value"""
         if section not in self.config:
