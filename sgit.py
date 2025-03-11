@@ -107,6 +107,54 @@ def cmd_commit(args):
         return 0
     return 1
 
+def cmd_config(args):
+    """Get and set repository options"""
+    repo = Repository.find_repository()
+    if not repo:
+        print("Not a SimpleGit repository")
+        return 1
+    
+    from core.config import Config
+    config = Config(repo)
+    
+    if args.get:
+        # Get config value
+        section, key = args.get.split(".", 1)
+        value = config.get(section, key)
+        if value is not None:
+            print(value)
+            return 0
+        else:
+            print(f"Config value '{args.get}' not found")
+            return 1
+    
+    if args.name:
+        # Set user.name
+        config.set("user", "name", args.name)
+        print(f"Set user.name to '{args.name}'")
+        return 0
+    
+    if args.email:
+        # Set user.email
+        config.set("user", "email", args.email)
+        print(f"Set user.email to '{args.email}'")
+        return 0
+    
+    if args.section and args.key and args.value:
+        # Set arbitrary config value
+        config.set(args.section, args.key, args.value)
+        print(f"Set {args.section}.{args.key} to '{args.value}'")
+        return 0
+    
+    # No action specified, show usage
+    print("Usage: simplegit config --get <section.key>")
+    print("   or: simplegit config --name <username>")
+    print("   or: simplegit config --email <email>")
+    print("   or: simplegit config <section> <key> <value>")
+    return 1
+
+## def cmd_branch
+## def cmd_checkout 
 
 def main():
     parser = argparse.ArgumentParser(description="SimpleGit: A minimal Git implementation for testing")
@@ -130,6 +178,15 @@ def main():
     # commit command
     parser_commit = subparsers.add_parser("commit", help="Record changes to the repository")
     parser_commit.add_argument("-m", "--message", required=True, help="Commit message")
+
+    # config command
+    parser_config = subparsers.add_parser("config", help="Get and set repository options")
+    parser_config.add_argument("--get", help="Get a config value (format: section.key)")
+    parser_config.add_argument("--name", help="Set user name")
+    parser_config.add_argument("--email", help="Set user email")
+    parser_config.add_argument("section", nargs="?", help="Config section")
+    parser_config.add_argument("key", nargs="?", help="Config key")
+    parser_config.add_argument("value", nargs="?", help="Config value")
     
     args = parser.parse_args()
     
@@ -143,6 +200,8 @@ def main():
         return cmd_log(args)
     elif args.command == "commit":
         return cmd_commit(args)
+    elif args.command == "config":
+        return cmd_config(args)
     else:
         parser.print_help()
         return 1
