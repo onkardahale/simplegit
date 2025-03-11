@@ -232,6 +232,11 @@ def main():
     parser_config.add_argument("section", nargs="?", help="Config section")
     parser_config.add_argument("key", nargs="?", help="Config key")
     parser_config.add_argument("value", nargs="?", help="Config value")
+
+    # branch command
+    parser_branch = subparsers.add_parser("branch", help="List, create, or delete branches")
+    parser_branch.add_argument("name", nargs="?", help="Branch name")
+    parser_branch.add_argument("-d", "--delete", help="Delete a branch")
     
     args = parser.parse_args()
     
@@ -247,6 +252,8 @@ def main():
         return cmd_commit(args)
     elif args.command == "config":
         return cmd_config(args)
+    elif args.command == "branch":
+        return cmd_branch(args)
     else:
         parser.print_help()
         return 1
