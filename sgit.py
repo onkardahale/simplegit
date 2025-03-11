@@ -265,6 +265,10 @@ def main():
     parser_branch = subparsers.add_parser("branch", help="List, create, or delete branches")
     parser_branch.add_argument("name", nargs="?", help="Branch name")
     parser_branch.add_argument("-d", "--delete", help="Delete a branch")
+
+    # checkout command
+    parser_checkout = subparsers.add_parser("checkout", help="Switch branches or restore working tree files")
+    parser_checkout.add_argument("branch", help="Branch or commit to checkout")
     
     args = parser.parse_args()
     
@@ -282,6 +286,8 @@ def main():
         return cmd_config(args)
     elif args.command == "branch":
         return cmd_branch(args)
+    elif args.command == "checkout":
+        return cmd_checkout(args)
     else:
         parser.print_help()
         return 1
