@@ -96,6 +96,7 @@ class Repository:
         """
         from core.object import Commit
         from core.ref import Reference
+        from core.config import Config
         
         if not message:
             print("Aborting commit due to empty commit message")
@@ -111,9 +112,13 @@ class Repository:
         refs = Reference(self)
         head_sha1 = refs.resolve_HEAD()
         
+        # Get user info from config
+        config = Config(self)
+        author = config.get_user_info()
+        
         # Create the commit object
         commit = Commit(self)
-        commit_sha1 = commit.create(tree_sha1, message, parent=head_sha1)
+        commit_sha1 = commit.create(tree_sha1, message, parent=head_sha1, author=author, committer=author)
         
         # Update the current branch to point to the new commit
         is_detached, target = refs.get_HEAD()
